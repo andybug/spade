@@ -2,8 +2,15 @@
 
 import os
 import sys
+import redis
 
-import spade.server.database as spade
+import spade.server.database as database
+import spade.server.api
 
 if __name__ == '__main__':
-    spade.process_sport(sys.argv[1])
+    r = redis.StrictRedis(host=os.environ['REDIS_PORT_6379_TCP_ADDR'], port=6379)
+    r.flushall()
+
+    db = database.Database(r)
+    db.read()
+    spade.server.api.listen(r)
