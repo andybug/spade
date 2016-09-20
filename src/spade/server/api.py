@@ -7,6 +7,13 @@ app = Flask(__name__)
 r = None
 
 
+@app.route('/<sport>/teams', methods=['GET'])
+def teams(sport):
+    json_data = r.get('%s:teams' % sport)
+    resp = Response(response=json_data, status=200, mimetype='application/json')
+    return resp
+
+
 @app.route('/<sport>/seasons', methods=['GET'])
 def seasons(sport):
     json_data = r.get('%s:seasons' % sport)

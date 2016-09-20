@@ -36,8 +36,11 @@ class Sport:
 
     def read(self):
         print('reading sport %s from %s' % (self.sport, self.root))
-        seasons = sorted(os.listdir(self.root))
+        self.read_teams()
 
+        seasons = sorted(os.listdir(self.root))
+        if 'teams.csv' in seasons:
+            seasons.remove('teams.csv')
         seasons_list = []
 
         for season in seasons:
@@ -47,6 +50,24 @@ class Sport:
         output['sport'] = self.sport
         output['seasons'] = seasons_list
         self.db.redis.set('%s:seasons' % self.sport, json.dumps(output, indent=2, sort_keys=True))
+
+    def read_teams(self):
+        path = os.path.join(self.root, 'teams.csv')
+        teams_list = []
+
+        with open(path, 'r') as f:
+            reader = csv.reader(f)
+            next(reader)
+            for row in reader:
+                self.teams_map[row[0]] = self.teams
+                team = {}
+                team['id'] = self.teams
+                team['team'] = row[1]
+                teams_list.append(team)
+                self.teams += 1
+
+        output = {'teams': teams_list}
+        self.db.redis.set('%s:teams' % self.sport, json.dumps(output, indent=2, sort_keys=True))
 
     def read_season(self, season):
         path = os.path.join(self.root, season)
@@ -80,11 +101,14 @@ class Sport:
                 game = {}
                 game['date'] = row[0]
                 game['id'] = self.games
-                game['hteam'] = row[2]
+                game['hteam'] = self.teams_map[row[2]]
                 game['hscore'] = int(row[3])
-                game['ateam'] = row[4]
+                game['ateam'] = self.teams_map[row[4]]
                 game['ascore'] = int(row[5])
-                game['neutral'] = bool(row[6])
+                if row[6] == '0':
+                    game['neutral'] = False
+                else:
+                    game['neutral'] = True
                 games_list.append(game)
                 self.db.redis.rpush('%s:games' % self.sport, json.dumps(game, indent=2, sort_keys=True))
                 end = self.games
