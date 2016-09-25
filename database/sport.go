@@ -5,6 +5,8 @@ import "io"
 import "path/filepath"
 import log "github.com/Sirupsen/logrus"
 import "os"
+import "io/ioutil"
+import "regexp"
 
 type Sport struct {
 	name string
@@ -25,6 +27,7 @@ func (s *Sport) ReadSport() {
 	}).Info("database: reading sport")
 
 	s.readTeams()
+	s.readSeasons()
 }
 
 func (s *Sport) readTeams() {
@@ -74,4 +77,49 @@ func (s *Sport) readTeams() {
 		"path": path,
 		"teams": num_teams,
 	}).Info("database: done reading teams")
+}
+
+func (s *Sport) readSeasons() {
+	path := filepath.Join(s.path, "seasons")
+	log.WithFields(log.Fields{
+		"sport": s.name,
+		"path": path,
+	}).Info("database: reading seasons")
+
+	s.seasons = make([]Season, 16)
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"sport": s.name,
+			"path": path,
+			"error": err,
+		}).Fatal("database: error reading seasons")
+	}
+
+	var year = regexp.MustCompile(`^[0-9]{4}$`)
+	for _, file := range files {
+		if !file.IsDir() {
+			log.WithFields(log.Fields{
+				"file": filepath.Join(path, file.Name()),
+			}).Debug("database: ignoring non-directory")
+			continue
+		}
+
+		if !year.MatchString(file.Name()) {
+			log.WithFields(log.Fields{
+				"file": filepath.Join(path, file.Name()),
+			}).Debug("database: ignoring non-season directory")
+			continue
+		}
+
+		season := Season{
+			sport: s,
+			season: file.Name(),
+			path: filepath.Join(path, file.Name()),
+		}
+
+		season.ReadSeason()
+		s.seasons = append(s.seasons, season)
+	}
 }
